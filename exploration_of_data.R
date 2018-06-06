@@ -87,7 +87,7 @@ metro_tracts <- function(metro_name) {
       })
     )
   } else {
-    tr <- tracts(x, cb = TRUE)
+    tr <- tracts(stcodes, cb = TRUE)
   }
   
   # Now, find out which tracts are within the metro area
@@ -167,4 +167,17 @@ cb <- core_based_statistical_areas(cb = TRUE)
 fl <- tracts(state = 'FL', county = c('Hillsborough'))
 
 pdx <- filter(cb, grepl("Tampa", NAME))
+
+
+chi <- metro_tracts("Chicago")
+
+ggplot(chi) + geom_sf()
+plot(chi$geometry)
+
+debug(metro_tracts)
+tampa <- metro_tracts("Tampa")
+plot(tampa)
+
+############################ End of script #####################################################
+
 
