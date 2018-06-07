@@ -119,6 +119,21 @@ metro_tracts <- function(metro_name) {
   
 }
 
+# Write function to get ZCTAs for a given metro
+get_zips <- function(metro_name) {
+  zips <- zctas(cb = TRUE)
+  metros <- core_based_statistical_areas(cb = TRUE)
+  # Subset for specific metro area
+  # (be careful with duplicate cities like "Washington")
+  my_metro <- metros[grepl(sprintf("^%s", metro_name),
+                           metros$NAME, ignore.case = TRUE), ]
+  # Find all ZCTAs that intersect the metro boundary
+  metro_zips <- over(my_metro, zips, returnList = TRUE)[[1]]
+  my_zips <- zips[zips$ZCTA5CE10 %in% metro_zips$ZCTA5CE10, ]
+  # Return those ZCTAs
+  return(my_zips)
+}
+
 ### Other functions ####
 
 #function_processing_data <- ".R" #PARAM 1
@@ -264,8 +279,8 @@ m
 
 library(tmap)
 rds <- primary_roads()
-#dfw <- get_zips("Dallas")
-dfw_merged <- geo_join(dfw, df, "ZCTA5CE10", "zip_str")
+dfw_zcta <- get_zips("Dallas")
+dfw_merged <- geo_join(dfw_zcta, df, "ZCTA5CE10", "zip_str")
 
 tm_shape(dfw_merged, projection = "+init=epsg:26914") +
   tm_fill("incpr", style = "quantile", n = 7, palette = "Greens", title = "") +
