@@ -279,6 +279,7 @@ m
 
 library(tmap)
 rds <- primary_roads()
+debug(get_zips)
 dfw_zcta <- get_zips("Dallas")
 dfw_merged <- geo_join(dfw_zcta, df, "ZCTA5CE10", "zip_str")
 
