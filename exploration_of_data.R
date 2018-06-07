@@ -13,6 +13,7 @@
 ## Links to investigate:
 #https://journal.r-project.org/archive/2016/RJ-2016-043/index.html
 #https://walkerke.github.io/2017/05/tigris-metros/
+#https://cran.r-project.org/web/packages/censusapi/vignettes/getting-started.html
 
 ###################################################
 #
@@ -42,9 +43,19 @@ library(car)
 library(sf)
 library(tigris)
 
+library(acs)
+library(leaflet)
+
 library(tidyverse)
 options(tigris_class = "sf")
 options(tigris_use_cache = TRUE)
+
+## Add key to .Renviron
+#Sys.setenv(CENSUS_KEY=YOURKEYHERE)
+## Reload .Renviron
+#readRenviron("~/.Renviron")
+## Check to see that the expected key is output in your R console
+#Sys.getenv("CENSUS_KEY")
 
 ###### Functions used in this script and sourced from other files
 
@@ -120,12 +131,20 @@ metro_tracts <- function(metro_name) {
 
 out_suffix <- "data_exploration_05312018" #output suffix for the files and ouptut folder #param 12
 
-in_dir <- "/nfs/bparmentier-data/Data/projects/FishingandUrbanInequality-data/data"
+in_dir <- "/nfs/bparmentier-data/Data/projects/FishingandUrbanInequality-data/gis_data"
 out_dir <- "/nfs/bparmentier-data/Data/projects/FishingandUrbanInequality-data/outputs"
 
 file_format <- ".tif" #PARAM5
 NA_flag_val <- -9999 #PARAM7
 create_out_dir_param=TRUE #PARAM9
+
+NOLA_MSA_counties_fname <- "NolaMSA_county2010.shp"
+Tampa_MSA_counties_fname <- "TampaMSA_county2010.shp"
+zcta_reprojected_fname <- "zcta2010_reprojected.shp"
+zcta_sites_fname <- "zcta2010_reprojected_sites.shp"
+
+### param
+key_file <- "~/censuskey.txt"
 
 ############## START SCRIPT ############################
 
@@ -144,6 +163,8 @@ if(create_out_dir_param==TRUE){
   setwd(out_dir) #use previoulsy defined directory
 }
 
+key_val <- as.character(readLines(key_file))
+
 ###################### PART 1: ###########
 
 orwa <- rbind_tigris(
@@ -158,6 +179,9 @@ cb <- core_based_statistical_areas(cb = TRUE)
 pdx <- filter(cb, grepl("Portland-Vancouver", NAME))
 
 ggplot(pdx) + geom_sf()
+
+ggplot(tampa) +
+  geom_sf(aes(fill = AREA))
 
 ### Now get Florida
 
@@ -177,6 +201,83 @@ plot(chi$geometry)
 debug(metro_tracts)
 tampa <- metro_tracts("Tampa")
 plot(tampa)
+
+st_read()
+
+NOLA_MSA_counties_fname <- "NolaMSA_county2010.shp"
+Tampa_MSA_counties_fname <- "TampaMSA_county2010.shp"
+zcta_reprojected_fname <- "zcta2010_reprojected.shp"
+zcta_sites_fname <- "zcta2010_reprojected_sites.shp"
+
+
+
+# api.key.install("my_key_here") You can get your own API key from the Census Bureau
+
+#api.key.install(key_val, file = "key.rda")
+#api.key.install(key_val)
+
+income_data <- acs.fetch(endyear = 2012, 
+                         geography = geo.make(state = "TX", 
+                                              county = c(113, 439), 
+                                              tract = "*"), 
+                         variable = "B19013_001",
+                         key = key_val)
+
+#income_data <- acs.fetch(endyear = 2012, 
+#                         geography = geo.make(state = "TX", 
+#                                              county = c(113, 439), 
+#                                              tract = "*"), 
+#                         variable = "B19013_001")
+
+
+income_df <- data.frame(paste0(as.character(income_data@geography$state), 
+                               as.character(income_data@geography$county), 
+                               income_data@geography$tract), 
+                        income_data@estimate)
+
+colnames(income_df) <- c("GEOID", "hhincome")
+dfw <- tracts(state = 'TX', county = c('Dallas', 'Tarrant'))
+
+plot(dfw)
+
+dfw_merged <- geo_join(dfw, income_df, "GEOID", "GEOID")
+
+pal <- colorQuantile("Greens", NULL, n = 6) #palette
+
+popup <- paste0("Median household income: ", as.character(dfw_merged$hhincome)) # character
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data = dfw_merged, 
+              fillColor = ~pal(dfw_merged$hhincome), 
+              fillOpacity = 0.7, 
+              weight = 0.2, 
+              smoothFactor = 0.2, 
+              popup = popup) %>%
+  addLegend(pal = pal, 
+            values = dfw_merged$hhincome, 
+            position = "bottomright", 
+            title = "Income in DFW")
+
+m <- leaflet() %>% addTiles()
+m
+
+library(tmap)
+rds <- primary_roads()
+#dfw <- get_zips("Dallas")
+dfw_merged <- geo_join(dfw, df, "ZCTA5CE10", "zip_str")
+
+tm_shape(dfw_merged, projection = "+init=epsg:26914") +
+  tm_fill("incpr", style = "quantile", n = 7, palette = "Greens", title = "") +
+  tm_shape(rds, projection = "+init=epsg:26914") +
+  tm_lines(col = "darkgrey") +
+  tm_layout(bg.color = "ivory",
+            title = "Average income by zip code \n(in $1000s US), Dallas-Fort Worth",
+            title.position = c("right", "top"), title.size = 1.1,
+            legend.position = c(0.85, 0), legend.text.size = 0.75,
+            legend.width = 0.2) +
+  tm_credits("Data source: US Internal Revenue Service",
+             position = c(0.002, 0.002))
 
 ############################ End of script #####################################################
 
