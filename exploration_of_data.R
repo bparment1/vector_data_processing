@@ -120,9 +120,11 @@ metro_tracts <- function(metro_name) {
 }
 
 # Write function to get ZCTAs for a given metro
-get_zips <- function(metro_name) {
-  zips <- zctas(cb = TRUE)
-  metros <- core_based_statistical_areas(cb = TRUE)
+get_zcta_zones <- function(metro_name) {
+  ## This gets all zcta in sf format:
+  zips <- zctas(cb = TRUE) #all zcta in US (4,269 polygons)
+  
+  metros <- core_based_statistical_areas(cb = TRUE) # get all metro areas
   # Subset for specific metro area
   # (be careful with duplicate cities like "Washington")
   my_metro <- metros[grepl(sprintf("^%s", metro_name),
@@ -202,30 +204,60 @@ ggplot(tampa) +
 
 fl <- rbind_tigristracts("OR", cb = TRUE) 
 
-cb <- core_based_statistical_areas(cb = TRUE)
-fl <- tracts(state = 'FL', county = c('Hillsborough'))
+## This gets all zcta in sf format:
+zips <- zctas(cb = TRUE) #all zcta in US (4,269 polygons)
+## This gets all the metropolitan and core based areas?
+metros <- core_based_statistical_areas(cb = TRUE) # get core stat areas
 
-pdx <- filter(cb, grepl("Tampa", NAME))
-
-
-chi <- metro_tracts("Chicago")
-
-ggplot(chi) + geom_sf()
-plot(chi$geometry)
-
-debug(metro_tracts)
-tampa <- metro_tracts("Tampa")
-plot(tampa)
-
-st_read()
+NOLA_MSA_counties_sf <- st_read(file.path(in_dir,NOLA_MSA_counties_fname))
+dim(NOLA_MSA_counties_sf)  
 
 NOLA_MSA_counties_fname <- "NolaMSA_county2010.shp"
 Tampa_MSA_counties_fname <- "TampaMSA_county2010.shp"
 zcta_reprojected_fname <- "zcta2010_reprojected.shp"
 zcta_sites_fname <- "zcta2010_reprojected_sites.shp"
 
+#fl <- tracts(state = 'FL', county = c('Hillsborough'))
+
+#metro_Houston <- filter(cb, grepl("Houston", NAME))
+
+selected_cities <- c("Tampa","New Orleans")
+metro_tampa <- filter(cb, grepl(selected_cities[1], NAME)) ## Anything with Tampa in the name
+plot(metro_tampa$geometry)
+metro_NOLA <- filter(cb, grepl(selected_cities[2], NAME)) ## Anything with New Orleans in the name
+
+plot(metro_NOLA)
+plot(metro_tampa)
+
+#chi <- metro_tracts("Chicago")
+#plot(chi$geometry)
+#[847] "Tampa-St. Petersburg-Clearwater, FL"                                          
+#[611] "New Orleans-Metairie, LA"                                         
+
+tracts_tampa <- metro_tracts("Tampa")
+plot(tracts_tampa)
+tracts_NOLA <- metro_tracts("New Orleans")
+plot(tracts_NOLA)
+class(tracts_NOLA)
+
+plot(NOLA_MSA_counties_sf$geometry)
+plot(tracts_NOLA,add=T,border="red")
 
 
+library(tigris)
+library(ggplot2)
+library(ggthemes)
+
+me <- counties("Maine", cb = TRUE)
+me_map <- fortify(me)
+
+gg <- ggplot()
+gg <- gg + geom_map(data=me_map, map=me_map,
+                    aes(x=long, y=lat, map_id=id),
+                    color="black", fill="white", size=0.25)
+gg <- gg + coord_map()
+gg <- gg + theme_map()
+gg
 # api.key.install("my_key_here") You can get your own API key from the Census Bureau
 
 #api.key.install(key_val, file = "key.rda")
@@ -237,6 +269,9 @@ income_data <- acs.fetch(endyear = 2012,
                                               tract = "*"), 
                          variable = "B19013_001",
                          key = key_val)
+
+
+
 
 #income_data <- acs.fetch(endyear = 2012, 
 #                         geography = geo.make(state = "TX", 
