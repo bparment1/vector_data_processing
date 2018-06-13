@@ -209,6 +209,7 @@ zips <- zctas(cb = TRUE) #all zcta in US (4,269 polygons)
 ## This gets all the metropolitan and core based areas?
 metros <- core_based_statistical_areas(cb = TRUE) # get core stat areas
 
+
 NOLA_MSA_counties_sf <- st_read(file.path(in_dir,NOLA_MSA_counties_fname))
 dim(NOLA_MSA_counties_sf)  
 
@@ -226,6 +227,7 @@ metro_tampa <- filter(cb, grepl(selected_cities[1], NAME)) ## Anything with Tamp
 plot(metro_tampa$geometry)
 metro_NOLA <- filter(cb, grepl(selected_cities[2], NAME)) ## Anything with New Orleans in the name
 
+urban_NOLA <- urban_ares()
 plot(metro_NOLA)
 plot(metro_tampa)
 
@@ -243,21 +245,22 @@ class(tracts_NOLA)
 plot(NOLA_MSA_counties_sf$geometry)
 plot(tracts_NOLA,add=T,border="red")
 
+Louisiana_counties_sf <- counties("Louisiana",resolution = "500k") # can change the resolution
+test <- st_intersects(tracts_NOLA,Louisiana_counties_sf)
+test <- st_intersection(tracts_NOLA,Louisiana_counties_sf)
 
-library(tigris)
-library(ggplot2)
-library(ggthemes)
+plot(Louisiana_counties_sf)
+plot(test)
+class(test)
+str(test)
+st_crs(Louisiana_counties_sf)
+st_crs(tracts_NOLA)
 
-me <- counties("Maine", cb = TRUE)
-me_map <- fortify(me)
+plot(Louisiana_counties_sf)
+dim(test)
+class(test)
 
-gg <- ggplot()
-gg <- gg + geom_map(data=me_map, map=me_map,
-                    aes(x=long, y=lat, map_id=id),
-                    color="black", fill="white", size=0.25)
-gg <- gg + coord_map()
-gg <- gg + theme_map()
-gg
+
 # api.key.install("my_key_here") You can get your own API key from the Census Bureau
 
 #api.key.install(key_val, file = "key.rda")
