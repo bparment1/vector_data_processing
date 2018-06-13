@@ -134,12 +134,14 @@ get_zcta_zones <- function(metro_name) {
   
   class(my_metro)
   class(zips)
-  metro_zips <- over(my_metro, zips, returnList = TRUE)[[1]]
+  #metro_zips <- over(my_metro, zips, returnList = TRUE)[[1]]
   #Error in (function (classes, fdef, mtable)  : 
   #            unable to find an inherited method for function ‘over’ for signature ‘"sf", "sf"’
   
+  my_metro_sp <- as(my_metro,"Spatial")
+  zips_sp <- as(zips,"Spatial")
   
-  plot(metros)
+  metro_zips <- over(my_metro_sp, zips_sp, returnList = TRUE)[[1]]
   
   my_zips <- zips[zips$ZCTA5CE10 %in% metro_zips$ZCTA5CE10, ]
   # Return those ZCTAs
