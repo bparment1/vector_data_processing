@@ -43,7 +43,7 @@ library(car)
 library(sf)
 library(tigris)
 
-library(acs)
+library(acs) # census api
 library(leaflet)
 
 library(tidyverse)
@@ -129,8 +129,18 @@ get_zcta_zones <- function(metro_name) {
   # (be careful with duplicate cities like "Washington")
   my_metro <- metros[grepl(sprintf("^%s", metro_name),
                            metros$NAME, ignore.case = TRUE), ]
+  
   # Find all ZCTAs that intersect the metro boundary
+  
+  class(my_metro)
+  class(zips)
   metro_zips <- over(my_metro, zips, returnList = TRUE)[[1]]
+  #Error in (function (classes, fdef, mtable)  : 
+  #            unable to find an inherited method for function ‘over’ for signature ‘"sf", "sf"’
+  
+  
+  plot(metros)
+  
   my_zips <- zips[zips$ZCTA5CE10 %in% metro_zips$ZCTA5CE10, ]
   # Return those ZCTAs
   return(my_zips)
@@ -184,55 +194,29 @@ key_val <- as.character(readLines(key_file))
 
 ###################### PART 1: ###########
 
-orwa <- rbind_tigris(
-  tracts("OR", cb = TRUE), 
-  tracts("WA", cb = TRUE)
-)
-
-ggplot(orwa) + geom_sf()
-
-cb <- core_based_statistical_areas(cb = TRUE)
-
-pdx <- filter(cb, grepl("Portland-Vancouver", NAME))
-
-ggplot(pdx) + geom_sf()
-
-ggplot(tampa) +
-  geom_sf(aes(fill = AREA))
-
-### Now get Florida
-
-fl <- rbind_tigristracts("OR", cb = TRUE) 
 
 ## This gets all zcta in sf format:
 zips <- zctas(cb = TRUE) #all zcta in US (4,269 polygons)
 ## This gets all the metropolitan and core based areas?
 metros <- core_based_statistical_areas(cb = TRUE) # get core stat areas
 
-
+### used for comparison:
 NOLA_MSA_counties_sf <- st_read(file.path(in_dir,NOLA_MSA_counties_fname))
 dim(NOLA_MSA_counties_sf)  
-
-NOLA_MSA_counties_fname <- "NolaMSA_county2010.shp"
-Tampa_MSA_counties_fname <- "TampaMSA_county2010.shp"
-zcta_reprojected_fname <- "zcta2010_reprojected.shp"
-zcta_sites_fname <- "zcta2010_reprojected_sites.shp"
-
-#fl <- tracts(state = 'FL', county = c('Hillsborough'))
-
-#metro_Houston <- filter(cb, grepl("Houston", NAME))
+Tampa_MSA_counties_sf <- st_read(file.path(in_dir,Tampa_MSA_counties_fname))
+dim(Tampa_MSA_counties_sf)  
 
 selected_cities <- c("Tampa","New Orleans")
-metro_tampa <- filter(cb, grepl(selected_cities[1], NAME)) ## Anything with Tampa in the name
+metro_tampa <- filter(metros, grepl(selected_cities[1], NAME)) ## Anything with Tampa in the name
 plot(metro_tampa$geometry)
-metro_NOLA <- filter(cb, grepl(selected_cities[2], NAME)) ## Anything with New Orleans in the name
+metro_NOLA <- filter(metros, grepl(selected_cities[2], NAME)) ## Anything with New Orleans in the name
 
-urban_NOLA <- urban_ares()
-plot(metro_NOLA)
-plot(metro_tampa)
+#urban_NOLA <- urban_areas()
+plot(metro_NOLA$geometry)
+plot(NOLA_MSA_counties_sf$geometry,add=T,border="red")
+plot(metro_tampa$geometry)
+plot(Tampa_MSA_counties_sf$geometry,add=T,border="red")
 
-#chi <- metro_tracts("Chicago")
-#plot(chi$geometry)
 #[847] "Tampa-St. Petersburg-Clearwater, FL"                                          
 #[611] "New Orleans-Metairie, LA"                                         
 
@@ -245,26 +229,12 @@ class(tracts_NOLA)
 plot(NOLA_MSA_counties_sf$geometry)
 plot(tracts_NOLA,add=T,border="red")
 
+### Can also get counties:
 Louisiana_counties_sf <- counties("Louisiana",resolution = "500k") # can change the resolution
-test <- st_intersects(tracts_NOLA,Louisiana_counties_sf)
-test <- st_intersection(tracts_NOLA,Louisiana_counties_sf)
 
 plot(Louisiana_counties_sf)
-plot(test)
-class(test)
-str(test)
 st_crs(Louisiana_counties_sf)
-st_crs(tracts_NOLA)
-
-plot(Louisiana_counties_sf)
-dim(test)
-class(test)
-
-
-# api.key.install("my_key_here") You can get your own API key from the Census Bureau
-
-#api.key.install(key_val, file = "key.rda")
-#api.key.install(key_val)
+st_crs(tracts_NOLA) #same projection
 
 income_data <- acs.fetch(endyear = 2012, 
                          geography = geo.make(state = "TX", 
@@ -272,48 +242,28 @@ income_data <- acs.fetch(endyear = 2012,
                                               tract = "*"), 
                          variable = "B19013_001",
                          key = key_val)
-
-
-
-
-#income_data <- acs.fetch(endyear = 2012, 
-#                         geography = geo.make(state = "TX", 
-#                                              county = c(113, 439), 
-#                                              tract = "*"), 
-#                         variable = "B19013_001")
-
-
-income_df <- data.frame(paste0(as.character(income_data@geography$state), 
-                               as.character(income_data@geography$county), 
-                               income_data@geography$tract), 
-                        income_data@estimate)
-
-colnames(income_df) <- c("GEOID", "hhincome")
-dfw <- tracts(state = 'TX', county = c('Dallas', 'Tarrant'))
-
-plot(dfw)
-
 dfw_merged <- geo_join(dfw, income_df, "GEOID", "GEOID")
 
-pal <- colorQuantile("Greens", NULL, n = 6) #palette
+##### Example of getting data with ZIP code lined up to ZCTA:
 
-popup <- paste0("Median household income: ", as.character(dfw_merged$hhincome)) # character
+# Read in the IRS data
+zip_data <- "https://www.irs.gov/pub/irs-soi/13zpallnoagi.csv"
+df <- read_csv(zip_data) %>%
+  mutate(zip_str = str_pad(as.character(ZIPCODE), width = 5,
+                           side = "left", pad = "0"),
+         incpr = A02650 / N02650) %>%
+  select(zip_str, incpr)
 
-leaflet() %>%
-  addProviderTiles("CartoDB.Positron") %>%
-  addPolygons(data = dfw_merged, 
-              fillColor = ~pal(dfw_merged$hhincome), 
-              fillOpacity = 0.7, 
-              weight = 0.2, 
-              smoothFactor = 0.2, 
-              popup = popup) %>%
-  addLegend(pal = pal, 
-            values = dfw_merged$hhincome, 
-            position = "bottomright", 
-            title = "Income in DFW")
 
-m <- leaflet() %>% addTiles()
-m
+dim(dfw)
+dim(df)
+
+#get_zips("Dallas")
+debug(get_zcta_zones)
+dfw <- get_zcta_zones("Dallas")
+
+df_merged <- geo_join(dfw,df,"ZCTA5CE10","zip_str")
+
 
 library(tmap)
 rds <- primary_roads()
