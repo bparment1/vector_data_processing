@@ -2,7 +2,7 @@
 ## Exploration of data for FishingandUrbanInequality pursuit gropu
 ## 
 ## DATE CREATED: 05/31/2018
-## DATE MODIFIED: 06/07/2018
+## DATE MODIFIED: 06/13/2018
 ## AUTHORS: Benoit Parmentier 
 ## PROJECT: 
 ## ISSUE: 
@@ -15,6 +15,7 @@
 #https://walkerke.github.io/2017/05/tigris-metros/
 #https://cran.r-project.org/web/packages/censusapi/vignettes/getting-started.html
 
+#https://journal.r-project.org/archive/2016/RJ-2016-043/RJ-2016-043.pdf
 ###################################################
 #
 
@@ -148,6 +149,8 @@ get_zcta_zones <- function(metro_name) {
   return(my_zips)
 }
 
+
+
 ### Other functions ####
 
 #function_processing_data <- ".R" #PARAM 1
@@ -238,13 +241,6 @@ plot(Louisiana_counties_sf)
 st_crs(Louisiana_counties_sf)
 st_crs(tracts_NOLA) #same projection
 
-income_data <- acs.fetch(endyear = 2012, 
-                         geography = geo.make(state = "TX", 
-                                              county = c(113, 439), 
-                                              tract = "*"), 
-                         variable = "B19013_001",
-                         key = key_val)
-dfw_merged <- geo_join(dfw, income_df, "GEOID", "GEOID")
 
 ##### Example of getting data with ZIP code lined up to ZCTA:
 
@@ -256,35 +252,26 @@ df <- read_csv(zip_data) %>%
          incpr = A02650 / N02650) %>%
   select(zip_str, incpr)
 
-
+class(df)
+names(df)
+df$zip_str
 dim(dfw)
 dim(df)
 
-#get_zips("Dallas")
-debug(get_zcta_zones)
-dfw <- get_zcta_zones("Dallas")
+df_NOLA <- get_zcta_zones("New Orleans")
 
-df_merged <- geo_join(dfw,df,"ZCTA5CE10","zip_str")
+df_NOLA_income <- geo_join(df_NOLA,df,"ZCTA5CE10","zip_str")
+plot(df_NOLA_income['incpr'],
+     main="Average income by zip")
 
-
-library(tmap)
-rds <- primary_roads()
-debug(get_zips)
-dfw_zcta <- get_zips("Dallas")
-dfw_merged <- geo_join(dfw_zcta, df, "ZCTA5CE10", "zip_str")
-
-tm_shape(dfw_merged, projection = "+init=epsg:26914") +
-  tm_fill("incpr", style = "quantile", n = 7, palette = "Greens", title = "") +
-  tm_shape(rds, projection = "+init=epsg:26914") +
-  tm_lines(col = "darkgrey") +
-  tm_layout(bg.color = "ivory",
-            title = "Average income by zip code \n(in $1000s US), Dallas-Fort Worth",
-            title.position = c("right", "top"), title.size = 1.1,
-            legend.position = c(0.85, 0), legend.text.size = 0.75,
-            legend.width = 0.2) +
-  tm_credits("Data source: US Internal Revenue Service",
-             position = c(0.002, 0.002))
 
 ############################ End of script #####################################################
 
+#income_data <- acs.fetch(endyear = 2012, 
+#                         geography = geo.make(state = "TX", 
+#                                              county = c(113, 439), 
+#                                              tract = "*"), 
+#                         variable = "B19013_001",
+#                         key = key_val)
+#dfw_merged <- geo_join(dfw, income_df, "GEOID", "GEOID")
 
