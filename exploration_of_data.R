@@ -1,4 +1,5 @@
 ############### SESYNC Research Support: Processing data ########## 
+##
 ## Exploration of data for FishingandUrbanInequality pursuit gropu
 ## 
 ## DATE CREATED: 05/31/2018
@@ -8,7 +9,7 @@
 ## ISSUE: 
 ## TO DO:
 ##
-## COMMIT: testing tigris
+## COMMIT: adding plot of outputs for Tampa
 ##
 ## Links to investigate:
 #https://journal.r-project.org/archive/2016/RJ-2016-043/index.html
@@ -16,6 +17,7 @@
 #https://cran.r-project.org/web/packages/censusapi/vignettes/getting-started.html
 
 #https://journal.r-project.org/archive/2016/RJ-2016-043/RJ-2016-043.pdf
+
 ###################################################
 #
 ###### Library used
@@ -42,7 +44,7 @@ library(rowr)                                # Contains cbind.fill
 library(car)
 library(sf)
 library(tigris)
-
+library(classInt)
 library(acs) # census api
 library(leaflet)
 
@@ -50,12 +52,6 @@ library(tidyverse)
 options(tigris_class = "sf")
 options(tigris_use_cache = TRUE)
 
-## Add key to .Renviron
-#Sys.setenv(CENSUS_KEY=YOURKEYHERE)
-## Reload .Renviron
-#readRenviron("~/.Renviron")
-## Check to see that the expected key is output in your R console
-#Sys.getenv("CENSUS_KEY")
 
 ###### Functions used in this script and sourced from other files
 
@@ -81,8 +77,6 @@ load_obj <- function(f){
 
 ## This is a slightly modified function from the package and paper by
 #Kyle Walker , The R Journal (2016) 8:2, pages 231-242.
-
-
 
 ### Other functions ####
 
@@ -178,23 +172,43 @@ st_crs(tracts_NOLA) #same projection
 
 # Read in the IRS data
 zip_data <- "https://www.irs.gov/pub/irs-soi/13zpallnoagi.csv"
-df <- read_csv(zip_data) %>%
+df_zips_income <- read_csv(zip_data) %>%
   mutate(zip_str = str_pad(as.character(ZIPCODE), width = 5,
                            side = "left", pad = "0"),
          incpr = A02650 / N02650) %>%
   select(zip_str, incpr)
 
-class(df)
-names(df)
-df$zip_str
-dim(dfw)
-dim(df)
+class(df_zips_income)
+names(df_zips_income)
+df_zips_income$zip_str
 
-df_NOLA <- get_zcta_zones("New Orleans")
+NOLA_zcta_sf <- get_zcta_zones("New Orleans")
 
-df_NOLA_income <- geo_join(df_NOLA,df,"ZCTA5CE10","zip_str")
-plot(df_NOLA_income['incpr'],
+NOLA_income_zcta_sf <- geo_join(NOLA_zcta_sf,df_zips_income,"ZCTA5CE10","zip_str")
+plot(NOLA_income_zcta_sf['incpr'],
      main="Average income by zip")
+
+Tampa_zcta_sf <- get_zcta_zones("Tampa")
+Tampa_income_zcta_sf <- geo_join(Tampa_zcta_sf,df_zips_income,"ZCTA5CE10","zip_str")
+
+## Example of ploting
+col_palette <- matlab.like(256)
+range_val <- range(Tampa_income_zcta_sf$incpr,na.rm=T)
+seq_val <- round((range_val[2] - range_val[1])/10)
+break_seq <- seq(range_val[1],range_val[2],seq_val)
+breaks.qt <- classIntervals(Tampa_income_zcta_sf$incpr, n=length(break_seq), 
+                            style="fixed", fixedBreaks=break_seq, intervalClosure='right')
+
+## Color for each class
+#colcode = findColours(breaks.qt , c('darkblue', 'blue', 'lightblue', 'palegreen','yellow','lightpink', 'pink','brown3',"red","darkred"))
+plot(Tampa_income_zcta_sf['incpr'],
+     main="Average income by zip",
+     at=breaks.qt$brks,
+     col=col_palette)
+
+plot(Tampa_income_zcta_sf['incpr'],
+     main="Average income by zip",
+     at=seq(25,275,25))
 
 
 ############################ End of script #####################################################
