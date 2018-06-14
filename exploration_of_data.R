@@ -2,7 +2,7 @@
 ## Exploration of data for FishingandUrbanInequality pursuit gropu
 ## 
 ## DATE CREATED: 05/31/2018
-## DATE MODIFIED: 06/13/2018
+## DATE MODIFIED: 06/14/2018
 ## AUTHORS: Benoit Parmentier 
 ## PROJECT: 
 ## ISSUE: 
@@ -18,7 +18,6 @@
 #https://journal.r-project.org/archive/2016/RJ-2016-043/RJ-2016-043.pdf
 ###################################################
 #
-
 ###### Library used
 
 library(gtools)                              # loading some useful tools 
@@ -80,88 +79,22 @@ load_obj <- function(f){
   env[[nm]]
 }
 
-metro_tracts <- function(metro_name) {
-  
-  # First, identify which states intersect the metro area using the
-  # `states` function in tigris
-  st <- states(cb = TRUE)
-  cb <- core_based_statistical_areas(cb = TRUE)
-  metro <- filter(cb, grepl(metro_name, NAME))
-  
-  stcodes <- st[metro,]$STATEFP
-  
-  # Then, fetch the tracts, using rbind_tigris if there is more
-  # than one state
-  if (length(stcodes) > 1) {
-    tr <- rbind_tigris(
-      map(stcodes, function(x) {
-        tracts(x, cb = TRUE)
-      })
-    )
-  } else {
-    tr <- tracts(stcodes, cb = TRUE)
-  }
-  
-  # Now, find out which tracts are within the metro area
-  within <- st_within(tr, metro)
-  
-  within_lgl <- map_lgl(within, function(x) {
-    if (length(x) == 1) {
-      return(TRUE)
-    } else {
-      return(FALSE)
-    }
-  })
-  
-  # Finally, subset and return the output
-  output <- tr[within_lgl,]
-  
-  return(output)
-  
-}
-
-# Write function to get ZCTAs for a given metro
-get_zcta_zones <- function(metro_name) {
-  ## This gets all zcta in sf format:
-  zips <- zctas(cb = TRUE) #all zcta in US (4,269 polygons)
-  
-  metros <- core_based_statistical_areas(cb = TRUE) # get all metro areas
-  # Subset for specific metro area
-  # (be careful with duplicate cities like "Washington")
-  my_metro <- metros[grepl(sprintf("^%s", metro_name),
-                           metros$NAME, ignore.case = TRUE), ]
-  
-  # Find all ZCTAs that intersect the metro boundary
-  
-  class(my_metro)
-  class(zips)
-  #metro_zips <- over(my_metro, zips, returnList = TRUE)[[1]]
-  #Error in (function (classes, fdef, mtable)  : 
-  #            unable to find an inherited method for function ‘over’ for signature ‘"sf", "sf"’
-  
-  my_metro_sp <- as(my_metro,"Spatial")
-  zips_sp <- as(zips,"Spatial")
-  
-  metro_zips <- over(my_metro_sp, zips_sp, returnList = TRUE)[[1]]
-  
-  my_zips <- zips[zips$ZCTA5CE10 %in% metro_zips$ZCTA5CE10, ]
-  # Return those ZCTAs
-  return(my_zips)
-}
+## This is a slightly modified function from the package and paper by
+#Kyle Walker , The R Journal (2016) 8:2, pages 231-242.
 
 
 
 ### Other functions ####
 
-#function_processing_data <- ".R" #PARAM 1
-#script_path <- "/nfs/bparmentier-data/Data/projects/FishingandUrbanInequality-data/scripts" #path to script #PARAM 
-#source(file.path(script_path,function_processing_data)) #source all functions used in this script 1.
+function_processing_data <- "exploration_of_data_functions_06142018.R" #PARAM 1
+script_path <- "/nfs/bparmentier-data/Data/projects/FishingandUrbanInequality-data/scripts" #path to script #PARAM 
+source(file.path(script_path,function_processing_data)) #source all functions used in this script 1.
 
 
 ############################################################################
 #####  Parameters and argument set up ###########
 
-out_suffix <- "data_exploration_05312018" #output suffix for the files and ouptut folder #param 12
+out_suffix <- "data_exploration_06142018" #output suffix for the files and ouptut folder #param 12
 
 in_dir <- "/nfs/bparmentier-data/Data/projects/FishingandUrbanInequality-data/gis_data"
 out_dir <- "/nfs/bparmentier-data/Data/projects/FishingandUrbanInequality-data/outputs"
@@ -240,7 +173,6 @@ Louisiana_counties_sf <- counties("Louisiana",resolution = "500k") # can change 
 plot(Louisiana_counties_sf)
 st_crs(Louisiana_counties_sf)
 st_crs(tracts_NOLA) #same projection
-
 
 ##### Example of getting data with ZIP code lined up to ZCTA:
 
